@@ -1,0 +1,4 @@
+kernel/drivers/misc/smsc_hub.ko
+kernel/drivers/misc/isa1200.ko
+kernel/drivers/misc/pm8xxx-vibrator.ko
+kernel/drivers/misc/qseecom.ko

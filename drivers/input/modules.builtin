@@ -1,0 +1,11 @@
+kernel/drivers/input/input-core.ko
+kernel/drivers/input/mousedev.ko
+kernel/drivers/input/evdev.ko
+kernel/drivers/input/joystick/xpad.ko
+kernel/drivers/input/keyboard/atkbd.ko
+kernel/drivers/input/keyboard/gpio_keys.ko
+kernel/drivers/input/keyboard/matrix_keypad.ko
+kernel/drivers/input/keyboard/pmic8xxx-keypad.ko
+kernel/drivers/input/misc/pmic8xxx-pwrkey.ko
+kernel/drivers/input/misc/uinput.ko
+kernel/drivers/input/mouse/psmouse.ko
