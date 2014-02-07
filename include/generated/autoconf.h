@@ -1,7 +1,7 @@
 /*
  *
  * Automatically generated file; DO NOT EDIT.
- * Linux/arm 3.4.0 Kernel Configuration
+ * Linux/arm 3.4.1 Kernel Configuration
  *
  */
 #define CONFIG_RING_BUFFER 1
@@ -778,7 +778,7 @@
 #define CONFIG_MSM_VCAP 1
 #define CONFIG_DEBUG_KERNEL 1
 #define CONFIG_COMPAT_BRK 1
-#define CONFIG_LOCALVERSION "-Ultimate_KERNEL-E100K"
+#define CONFIG_LOCALVERSION "-Ultimate_KERNEL-E100"
 #define CONFIG_RADIO_IRIS 1
 #define CONFIG_RADIO_ADAPTERS 1
 #define CONFIG_KERNEL_PMEM_EBI_REGION 1

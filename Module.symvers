@@ -2199,6 +2199,7 @@
 0x7e1183c9	async_schedule	vmlinux	EXPORT_SYMBOL_GPL
 0xe802617a	hci_disconnect	vmlinux	EXPORT_SYMBOL
 0x3ca4738e	__ps2_command	vmlinux	EXPORT_SYMBOL
+0xd2b6abed	usb_block_urb	vmlinux	EXPORT_SYMBOL_GPL
 0xd06bdf3f	fb_set_var	vmlinux	EXPORT_SYMBOL
 0x0bfe981f	__nla_put	vmlinux	EXPORT_SYMBOL
 0x4c2ae700	strnstr	vmlinux	EXPORT_SYMBOL
