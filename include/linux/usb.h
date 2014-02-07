@@ -1362,6 +1362,8 @@ static inline void usb_fill_bulk_urb(struct urb *urb,
 	urb->context = context;
 }
 
+#define usb_unblock_urb	usb_unpoison_urb
+
 /**
  * usb_fill_int_urb - macro to help initialize a interrupt urb
  * @urb: pointer to the urb to initialize.

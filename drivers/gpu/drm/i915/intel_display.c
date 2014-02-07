@@ -8368,7 +8368,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 	I915_WRITE(GEN6_RP_CONTROL,
 		   GEN6_RP_MEDIA_TURBO |
-		   GEN6_RP_MEDIA_HW_MODE |
+		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
 		   GEN6_RP_MEDIA_IS_GFX |
 		   GEN6_RP_ENABLE |
 		   GEN6_RP_UP_BUSY_AVG |
@@ -8625,6 +8625,18 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
 }
 
+static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
+{
+	uint32_t reg = I915_READ(GEN7_FF_THREAD_MODE);
+
+	reg &= ~GEN7_FF_SCHED_MASK;
+	reg |= GEN7_FF_TS_SCHED_HW;
+	reg |= GEN7_FF_VS_SCHED_HW;
+	reg |= GEN7_FF_DS_SCHED_HW;
+
+	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
+}
+
 static void ivybridge_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -8783,6 +8795,8 @@ static void ironlake_teardown_rc6(struct drm_device *dev)
 		drm_gem_object_unreference(&dev_priv->pwrctx->base);
 		dev_priv->pwrctx = NULL;
 	}
+
+	gen7_setup_fixed_func_scheduler(dev_priv);
 }
 
 static void ironlake_disable_rc6(struct drm_device *dev)

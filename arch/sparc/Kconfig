@@ -587,6 +587,9 @@ config SYSVIPC_COMPAT
 config KEYS_COMPAT
 	def_bool y if COMPAT && KEYS
 
+config KEYS_COMPAT
+	def_bool y if COMPAT && KEYS
+
 endmenu
 
 source "net/Kconfig"

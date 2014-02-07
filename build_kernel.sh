@@ -15,10 +15,10 @@ echo #       Now Starting...     #
 echo #############################
 make -j12
 echo Compiling Finished!
+cp arch/arm/boot/zImage zImage
 echo Striping Modules...
 rm -rf Modules/*
 find -name '*.ko' -exec cp -av {} Modules \;
         for i in Modules/*; do $TOOLCHAINPATH/arm-gnueabi-strip --strip-unneeded $i;done;\
-cp arch/arm/boot/zImage zImage
 echo ""
 echo Done! zImage is READY!!!
