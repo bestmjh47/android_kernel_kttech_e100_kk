@@ -28,6 +28,17 @@
 #define SCM_EINVAL_ARG		-2
 #define SCM_ERROR		-1
 #define SCM_INTERRUPTED		1
+//GCC 4.8
+#if defined(__GNUC__) && \
+ defined(__GNUC_MINOR__) && \
+ defined(__GNUC_PATCHLEVEL__) && \
+ ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)) \
+    >= 40502	
+#define USE_ARCH_EXTENSION_SEC 1
+#else	
+#define USE_ARCH_EXTENSION_SEC 0	
+#endif
+
 
 static DEFINE_MUTEX(scm_lock);
 
@@ -173,6 +184,10 @@ static u32 smc(u32 cmd_addr)
 			__asmeq("%1", "r0")
 			__asmeq("%2", "r1")
 			__asmeq("%3", "r2")
+//GCC 4.8
+#if USE_ARCH_EXTENSION_SEC	
+      ".arch_extension sec\n"	
+#endif	
 #ifdef REQUIRES_SEC
 			".arch_extension sec\n"
 #endif
@@ -297,6 +312,10 @@ s32 scm_call_atomic1(u32 svc, u32 cmd, u32 arg1)
 		__asmeq("%1", "r0")
 		__asmeq("%2", "r1")
 		__asmeq("%3", "r2")
+//GCC 4.8
+#if USE_ARCH_EXTENSION_SEC
+      ".arch_extension sec\n"
+#endif
 #ifdef REQUIRES_SEC
 			".arch_extension sec\n"
 #endif
@@ -332,6 +351,10 @@ s32 scm_call_atomic2(u32 svc, u32 cmd, u32 arg1, u32 arg2)
 		__asmeq("%2", "r1")
 		__asmeq("%3", "r2")
 		__asmeq("%4", "r3")
+//GCC 4.8
+#if USE_ARCH_EXTENSION_SEC	
+      ".arch_extension sec\n"	
+#endif
 #ifdef REQUIRES_SEC
 			".arch_extension sec\n"
 #endif
@@ -397,6 +420,10 @@ u32 scm_get_version(void)
 			__asmeq("%1", "r1")
 			__asmeq("%2", "r0")
 			__asmeq("%3", "r1")
+
+#if USE_ARCH_EXTENSION_SEC	
+      ".arch_extension sec\n"	
+#endif	
 #ifdef REQUIRES_SEC
 			".arch_extension sec\n"
 #endif

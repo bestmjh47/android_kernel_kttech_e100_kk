@@ -372,7 +372,10 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks
+		   -fno-delete-null-pointer-checks \
+                   $(call cc-disable-warning,maybe-uninitialized,) \
+                   $(call cc-disable-warning,frame-larger-than=,) \
+                   $(call cc-disable-warning,sizeof-pointer-memaccess,)
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -570,9 +573,9 @@ endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
-ifneq ($(CONFIG_FRAME_WARN),0)
-KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
-endif
+#ifneq ($(CONFIG_FRAME_WARN),0)
+#KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
+#endif
 
 # Force gcc to behave correct even for buggy distributions
 ifndef CONFIG_CC_STACKPROTECTOR
