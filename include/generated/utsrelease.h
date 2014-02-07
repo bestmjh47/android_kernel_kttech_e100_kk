@@ -1,1 +1,1 @@
-#define UTS_RELEASE "3.4.0-Ultimate_KERNEL-E100K-g944b64d-dirty"
+#define UTS_RELEASE "3.4.0-Ultimate_KERNEL-E100"
