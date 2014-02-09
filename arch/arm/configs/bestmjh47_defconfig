@@ -544,7 +544,3 @@ CONFIG_INET_XFRM_MODE_TUNNEL=y
 # daejang
 # for CTS
 CONFIG_UID_STAT=y
-
-
-# Force reboot feature by bestmjh47 for TAKE LTE
-# CONFIG_LONGHOLD_FORCE_REBOOT is not set

@@ -1,6 +1,0 @@
-kernel/drivers/power/power_supply.ko
-kernel/drivers/power/isl9519q.ko
-kernel/drivers/power/smb349.ko
-kernel/drivers/power/pm8xxx-ccadc.ko
-kernel/drivers/power/pm8921-bms.ko
-kernel/drivers/power/pm8921-charger.ko
