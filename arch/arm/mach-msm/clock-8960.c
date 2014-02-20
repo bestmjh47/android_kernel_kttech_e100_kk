@@ -3427,7 +3427,11 @@ static struct rcg_clk gfx2d1_clk = {
 		.ctl_val = CC_BANKED(9, 6, n), \
 	}
 
+#ifdef CONFIG_GPUOC_BESTMJH
+static struct clk_freq_tbl clk_tbl_gfx3d_8960_oc[] = {
+#else
 static struct clk_freq_tbl clk_tbl_gfx3d_8960[] = {
+#endif
 	F_GFX3D(        0, gnd,  0,  0),
 	F_GFX3D( 27000000, pxo,  0,  0),
 	F_GFX3D( 48000000, pll8, 1,  8),
@@ -3445,6 +3449,9 @@ static struct clk_freq_tbl clk_tbl_gfx3d_8960[] = {
 	F_GFX3D(300000000, pll3, 1,  4),
 	F_GFX3D(320000000, pll2, 2,  5),
 	F_GFX3D(400000000, pll2, 1,  2),
+#ifdef CONFIG_GPUOC_BESTMJH
+	F_GFX3D(480000000, pll3, 2,  5),
+#endif
 	F_END
 };
 
@@ -3534,14 +3541,22 @@ static struct rcg_clk gfx3d_clk = {
 	.ns_reg = GFX3D_NS_REG,
 	.root_en_mask = BIT(2),
 	.set_rate = set_rate_mnd_banked,
+#ifdef CONFIG_GPUOC_BESTMJH
+	.freq_tbl = clk_tbl_gfx3d_8960_oc,
+#else	
 	.freq_tbl = clk_tbl_gfx3d_8960,
+#endif
 	.bank_info = &bmnd_info_gfx3d,
 	.current_freq = &rcg_dummy_freq,
 	.c = {
 		.dbg_name = "gfx3d_clk",
 		.ops = &clk_ops_rcg,
 		VDD_DIG_FMAX_MAP3(LOW,  128000000, NOMINAL, 300000000,
+#ifdef CONFIG_GPUOC_BESTMJH
+				  HIGH, 480000000),
+#else		
 				  HIGH, 400000000),
+#endif				  
 		CLK_INIT(gfx3d_clk.c),
 		.depends = &gmem_axi_clk.c,
 	},

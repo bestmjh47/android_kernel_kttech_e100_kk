@@ -1722,6 +1722,12 @@ config MSM_AVS_HW
 	  fine tune the voltages based on the feedback from the ring
 	  oscillators.
 
+config GPUOC_BESTMJH
+	bool "Enable GPU Overclocking option"
+	default y
+	help
+	  Adreno2xx overclocking up to 480 MHz
+
 config MSM_HW3D
 	tristate "MSM Hardware 3D Register Driver"
 	depends on ANDROID_PMEM
