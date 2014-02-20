@@ -17,7 +17,7 @@ make -j15
 echo Compiling Finished!
 cp arch/arm/boot/zImage zImage
 echo Striping Modules...
-rm -rf Modules/*
+rm -rf modules/*
 find -name '*.ko' -exec cp -av {} Modules \;
         for i in Modules/*; do $TOOLCHAINPATH/arm-gnueabi-strip --strip-unneeded $i;done;\
 mkdir -p Modules/etc/firmware/wlan/prima
