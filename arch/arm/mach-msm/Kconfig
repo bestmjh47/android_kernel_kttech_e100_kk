@@ -1750,6 +1750,19 @@ config CPU_VOLTAGE_TABLE
 	help
 	  Krait User Votlage Control
 
+config CPU_OVERCLOCK
+	bool "Enable CPU Overclocking option"
+	default n
+	help
+	  Krait overclocking up to 1.84 GHz
+ 
+config OC_ULTIMATE
+	bool "allow 1.944 GHZ max OC option"
+	depends on CPU_OVERCLOCK
+	default n
+	help
+	  Unlock the ultimate Overclock freq speed @ 1.944 GHz
+
 config ADSP_RPC_VER
 	hex
 	default 0x30002 if (ARCH_MSM7X27 || (ARCH_MSM7X25 && AMSS_7X25_VERSION_2009))
