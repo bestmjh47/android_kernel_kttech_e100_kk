@@ -26,7 +26,7 @@ cp drivers/staging/prima/firmware_bin/WCNSS_qcom_wlan_nv.bin Modules/etc/firmwar
 echo ""
 echo Done! zImage is READY!!!
 echo Making bootimg for direct flashing...
-mkbootimg --cmdline "androidboot.hardware=qcom user_debug=31 msm_rtb.filter=0x3F ehci-hcd.park=3 no_console_suspend=1" --base 0x80200000 --pagesize 2048 --ramdiskaddr 0x82200000 --kernel zImage --ramdisk ramdisk/bestmjh47-ramdisk.gz -o boot-bestmjh47.img
+ramdisk/mkbootimg --cmdline "androidboot.hardware=qcom user_debug=31 msm_rtb.filter=0x3F ehci-hcd.park=3 no_console_suspend=1" --base 0x80200000 --pagesize 2048 --ramdiskaddr 0x82200000 --kernel zImage --ramdisk ramdisk/bestmjh47-ramdisk.gz -o boot-bestmjh47.img
 echo ""
 echo done! 
 
