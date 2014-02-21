@@ -1744,6 +1744,12 @@ config MSM_ADSP
 	help
 	  Provides access to registers needed by the userspace aDSP library.
 
+config CPU_VOLTAGE_TABLE
+	bool "Enable CPU Voltage Table via sysfs for adjustements"
+	default n
+	help
+	  Krait User Votlage Control
+
 config ADSP_RPC_VER
 	hex
 	default 0x30002 if (ARCH_MSM7X27 || (ARCH_MSM7X25 && AMSS_7X25_VERSION_2009))
