@@ -1,7 +1,7 @@
-/* This file is auto generated, version 32 */
+/* This file is auto generated, version 35 */
 /* SMP PREEMPT */
 #define UTS_MACHINE "arm"
-#define UTS_VERSION "#32 SMP PREEMPT Fri Feb 21 12:25:46 KST 2014"
+#define UTS_VERSION "#35 SMP PREEMPT Fri Feb 21 16:11:47 KST 2014"
 #define LINUX_COMPILE_BY "moon"
 #define LINUX_COMPILE_HOST "ubuntu"
-#define LINUX_COMPILER "gcc version 4.8.3 20131202 (prerelease) (crosstool-NG hg+default-4cfbdb295328 - Linaro GCC 2013.12 - Cortex-A8) "
+#define LINUX_COMPILER "gcc version 4.8.3 20140106 (prerelease) (crosstool-NG linaro-1.13.1+bzr2644 - Linaro GCC 2014.01) "

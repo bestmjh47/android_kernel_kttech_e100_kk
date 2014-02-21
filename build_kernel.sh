@@ -3,7 +3,7 @@
 # Take LTE Ultimate Kernel Source #             
 #           bestmjh47             #
 ###################################
-TOOLCHAINPATH=/home/moon/toolchain/linaro-4.8.3/bin
+TOOLCHAINPATH=/home/moon/toolchain/linaro-4.8.3-a9/bin
 export ARCH=arm
 #export CROSS_COMPILE=/home/moon/toolchain/arm-linux-androideabi-4.6/bin/arm-linux-androideabi-
 export CROSS_COMPILE=$TOOLCHAINPATH/arm-gnueabi-
@@ -26,7 +26,7 @@ cp drivers/staging/prima/firmware_bin/WCNSS_qcom_wlan_nv.bin Modules/etc/firmwar
 echo ""
 echo Done! zImage is READY!!!
 echo Making bootimg for direct flashing...
-ramdisk/mkbootimg --cmdline "androidboot.hardware=qcom user_debug=31 msm_rtb.filter=0x3F ehci-hcd.park=3 no_console_suspend=1" --base 0x80200000 --pagesize 2048 --ramdiskaddr 0x82200000 --kernel zImage --ramdisk ramdisk/bestmjh47-ramdisk.gz -o boot-bestmjh47.img
+ramdisk/mkbootimg --cmdline "androidboot.hardware=qcom user_debug=31 msm_rtb.filter=0x3F ehci-hcd.park=3 no_console_suspend=1" --base 0x80200000 --pagesize 2048 --ramdiskaddr 0x82200000 --kernel zImage --ramdisk ramdisk/bestmjh47-ramdisk.gz -o boot-e100.img
 echo ""
 echo done! 
 
