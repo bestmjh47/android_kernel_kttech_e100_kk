@@ -1,25 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -127,7 +107,6 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
    WLANTL_TIMER_EXPIER_UDATA_T *expireHandle;
    WLANTL_BAReorderType        *ReorderInfo;
    WLANTL_CbType               *pTLHandle;
-   WLANTL_STAClientType*       pClientSTA = NULL;
    vos_pkt_t                   *vosDataBuff;
    VOS_STATUS                   status = VOS_STATUS_SUCCESS;
    v_U8_t                       ucSTAID;
@@ -160,14 +139,7 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
       return;
    }
 
-   pClientSTA = pTLHandle->atlSTAClients[ucSTAID];
-   if( NULL == pClientSTA ){
-      TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-          "TL:STA Memory not allocated STA ID: %d, %s", ucSTAID, __func__));
-      return;
-   }
-
-   ReorderInfo = &pClientSTA->atlBAReorderInfo[ucTID];
+   ReorderInfo = &pTLHandle->atlSTAClients[ucSTAID].atlBAReorderInfo[ucTID];
    if(NULL == ReorderInfo)
    {
       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Reorder data NULL, this could not happen SID %d, TID %d", 
@@ -175,7 +147,7 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
       return;
    }
 
-   if(0 == pClientSTA->atlBAReorderInfo[ucTID].ucExists)
+   if(0 == pTLHandle->atlSTAClients[ucSTAID].atlBAReorderInfo[ucTID].ucExists)
    {
        TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Reorder session doesn't exist SID %d, TID %d", 
                    ucSTAID, ucTID));
@@ -188,7 +160,7 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
       return;
    }
 
-   if( 0 == pClientSTA->atlBAReorderInfo[ucTID].ucExists )
+   if( pTLHandle->atlSTAClients[ucSTAID].atlBAReorderInfo[ucTID].ucExists == 0 )
    {
       vos_lock_release(&ReorderInfo->reorderLock);
       return;
@@ -198,7 +170,7 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
    vosDataBuff = NULL;
 
 
-   TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"BA timeout with %d pending frames, curIdx %d", ReorderInfo->pendingFramesCount, ReorderInfo->ucCIndex));
+   TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"BA timeout with %d pending frames, curIdx %d", ReorderInfo->pendingFramesCount, ReorderInfo->ucCIndex));
 
    if(ReorderInfo->pendingFramesCount == 0)
    {
@@ -218,9 +190,10 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
       fwIdx = ReorderInfo->ucCIndex - 1;
    }
 
+#ifdef ANI_CHIPSET_VOLANS
    /* Do replay check before giving packets to upper layer 
       replay check code : check whether replay check is needed or not */
-   if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
+   if(VOS_TRUE == pTLHandle->atlSTAClients[ucSTAID].ucIsReplayCheckValid)
    {
        v_U64_t    ullpreviousReplayCounter = 0;
        v_U64_t    ullcurrentReplayCounter = 0;
@@ -231,7 +204,7 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
        for(ucloopCounter = 0; ucloopCounter < WLANTL_MAX_WINSIZE; ucloopCounter++)
        {
          /*Get previous reply counter*/
-         ullpreviousReplayCounter = pClientSTA->ullReplayCounter[ucTID];
+         ullpreviousReplayCounter = pTLHandle->atlSTAClients[ucSTAID].ullReplayCounter[ucTID];
 
          /*Get current replay counter of packet in reorder buffer*/
          ullcurrentReplayCounter = ReorderInfo->reorderBuffer->ullReplayCounter[ucloopCounter];
@@ -245,12 +218,12 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
            if(VOS_TRUE == status)
            {
                /*Increment the debug counter*/
-               pClientSTA->ulTotalReplayPacketsDetected++;
+               pTLHandle->atlSTAClients[ucSTAID].ulTotalReplayPacketsDetected++;
 
                /*A replay packet found*/
                VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
                 "WLANTL_ReorderingAgingTimerExpierCB: total dropped replay packets on STA ID %X is [0x%lX]\n",
-                ucSTAID, pClientSTA->ulTotalReplayPacketsDetected);
+                ucSTAID, pTLHandle->atlSTAClients[ucSTAID].ulTotalReplayPacketsDetected);
 
                VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
                 "WLANTL_ReorderingAgingTimerExpierCB: replay packet found with PN : [0x%llX]\n",
@@ -266,7 +239,7 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
            else
            {
               /*Not a replay packet update previous replay counter*/
-              pClientSTA->ullReplayCounter[ucTID] = ullcurrentReplayCounter;
+              pTLHandle->atlSTAClients[ucSTAID].ullReplayCounter[ucTID] = ullcurrentReplayCounter;
            }
          }
          else
@@ -277,6 +250,7 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
          }
        } 
    }
+#endif
 
    status = WLANTL_ChainFrontPkts(fwIdx, opCode, 
                                   &vosDataBuff, ReorderInfo, NULL);
@@ -290,7 +264,7 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
       return;
    }
 
-   if(NULL == pClientSTA->pfnSTARx)
+   if(NULL == pTLHandle->atlSTAClients[ucSTAID].pfnSTARx)
    {
       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Callback function NULL with STAID %d", ucSTAID));
       if(!VOS_IS_STATUS_SUCCESS(vos_lock_release(&ReorderInfo->reorderLock)))
@@ -310,14 +284,16 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
       return;
    }
 
-   if( WLAN_STA_SOFTAP == pClientSTA->wSTADesc.wSTAType)
+#ifdef WLAN_SOFTAP_FEATURE  
+   if( WLAN_STA_SOFTAP == pTLHandle->atlSTAClients[ucSTAID].wSTADesc.wSTAType)
    {
       WLANTL_FwdPktToHDD( expireHandle->pAdapter, vosDataBuff, ucSTAID);
    }
    else
+#endif
    {
       wRxMetaInfo.ucUP = ucTID;
-      pClientSTA->pfnSTARx(expireHandle->pAdapter,
+      pTLHandle->atlSTAClients[ucSTAID].pfnSTARx(expireHandle->pAdapter,
                                            vosDataBuff, ucSTAID, &wRxMetaInfo);
    }
    if(!VOS_IS_STATUS_SUCCESS(vos_lock_release(&ReorderInfo->reorderLock)))
@@ -358,7 +334,7 @@ void WLANTL_InitBAReorderBuffer
    if (NULL == pTLCb)
    {
       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-                       "%s: Invalid TL Control Block", __func__));
+                       "%s: Invalid TL Control Block", __FUNCTION__));
       return;
    }
 
@@ -368,7 +344,9 @@ void WLANTL_InitBAReorderBuffer
       for(pIdx = 0; pIdx < WLANTL_MAX_WINSIZE; pIdx++)
       {
          pTLCb->reorderBufferPool[idx].arrayBuffer[pIdx] = NULL;
+#ifdef ANI_CHIPSET_VOLANS
          pTLCb->reorderBufferPool[idx].ullReplayCounter[pIdx] = 0; 
+#endif
       }
    }
 
@@ -423,8 +401,7 @@ WLANTL_BaSessionAdd
   v_U32_t     SSN
 )
 {
-  WLANTL_CbType        *pTLCb = NULL;
-  WLANTL_STAClientType *pClientSTA = NULL;
+  WLANTL_CbType        *pTLCb = NULL; 
   WLANTL_BAReorderType *reorderInfo;
   v_U32_t               idx;
   VOS_STATUS            status = VOS_STATUS_SUCCESS;
@@ -458,16 +435,7 @@ WLANTL_BaSessionAdd
     return VOS_STATUS_E_FAULT;
   }
 
-  pClientSTA = pTLCb->atlSTAClients[ucSTAId];
-
-  if ( NULL == pClientSTA )
-  {
-      TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-          "WLAN TL:Client Memory was not allocated on %s", __func__));
-      return VOS_STATUS_E_FAILURE;
-  }
-
-  if ( 0 == pClientSTA->ucExists )
+  if ( 0 == pTLCb->atlSTAClients[ucSTAId].ucExists ) 
   {
     VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
           "WLAN TL:Station was not yet registered on WLANTL_BaSessionAdd");
@@ -477,9 +445,9 @@ WLANTL_BaSessionAdd
   /*------------------------------------------------------------------------
     Verify that BA session was not already added
    ------------------------------------------------------------------------*/
-  if ( 0 != pClientSTA->atlBAReorderInfo[ucTid].ucExists )
+  if ( 0 != pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucExists ) 
   {
-    pClientSTA->atlBAReorderInfo[ucTid].ucExists++;
+    pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucExists++;
     VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
               "WLAN TL:BA session already exists on WLANTL_BaSessionAdd");
     return VOS_STATUS_E_EXISTS;
@@ -488,25 +456,26 @@ WLANTL_BaSessionAdd
   /*------------------------------------------------------------------------
     Initialize new BA session 
    ------------------------------------------------------------------------*/
-  reorderInfo = &pClientSTA->atlBAReorderInfo[ucTid];
+  reorderInfo = &pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid];
 
   for(idx = 0; idx < WLANTL_MAX_BA_SESSION; idx++)
   {
     if(VOS_TRUE == pTLCb->reorderBufferPool[idx].isAvailable)
     {
-      pClientSTA->atlBAReorderInfo[ucTid].reorderBuffer =
+      pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].reorderBuffer =
                                             &(pTLCb->reorderBufferPool[idx]);
       pTLCb->reorderBufferPool[idx].isAvailable = VOS_FALSE;
       TLLOG4(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_LOW,"%dth buffer available, buffer PTR 0x%p",
                   idx,
-                  pClientSTA->atlBAReorderInfo[ucTid].reorderBuffer
+                  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].reorderBuffer
                   ));
       break;
     }
   }
 
+#ifdef WLAN_SOFTAP_FEATURE  
   
-  if( WLAN_STA_SOFTAP == pClientSTA->wSTADesc.wSTAType)
+  if( WLAN_STA_SOFTAP == pTLCb->atlSTAClients[ucSTAId].wSTADesc.wSTAType)
   {
       if( WLANTL_MAX_BA_SESSION == idx) 
       {
@@ -515,6 +484,7 @@ WLANTL_BaSessionAdd
           return VOS_STATUS_E_NOSUPPORT;
       }
   }
+#endif
   reorderInfo->timerUdata.pAdapter     = pvosGCtx;
   reorderInfo->timerUdata.pTLHandle    = (v_PVOID_t)pTLCb;
   reorderInfo->timerUdata.STAID        = ucSTAId;
@@ -541,20 +511,21 @@ WLANTL_BaSessionAdd
      return status;
   }
 
-  pClientSTA->atlBAReorderInfo[ucTid].ucExists++;
-  pClientSTA->atlBAReorderInfo[ucTid].usCount   = 0;
-  pClientSTA->atlBAReorderInfo[ucTid].ucCIndex  = 0;
+  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucExists++;
+  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].usCount   = 0;
+  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucCIndex  = 0;
   if(0 == winSize)
   {
-    pClientSTA->atlBAReorderInfo[ucTid].winSize = WLANTL_MAX_WINSIZE;
+    pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].winSize =
+                                                   WLANTL_MAX_WINSIZE;
   }
   else
   {
-    pClientSTA->atlBAReorderInfo[ucTid].winSize   = winSize;
+    pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].winSize   = winSize;
   }
-  pClientSTA->atlBAReorderInfo[ucTid].SSN       = SSN;
-  pClientSTA->atlBAReorderInfo[ucTid].sessionID = sessionID;
-  pClientSTA->atlBAReorderInfo[ucTid].pendingFramesCount = 0;
+  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].SSN       = SSN;
+  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].sessionID = sessionID;
+  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].pendingFramesCount = 0;
   TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
              "WLAN TL:New BA session added for STA: %d TID: %d",
              ucSTAId, ucTid));
@@ -601,8 +572,7 @@ WLANTL_BaSessionDel
   v_U8_t         ucTid
 )
 {
-  WLANTL_CbType*          pTLCb       = NULL;
-  WLANTL_STAClientType    *pClientSTA   = NULL;
+  WLANTL_CbType*          pTLCb       = NULL; 
   vos_pkt_t*              vosDataBuff = NULL;
   VOS_STATUS              vosStatus   = VOS_STATUS_E_FAILURE;
   VOS_STATUS              lockStatus = VOS_STATUS_E_FAILURE;  
@@ -640,29 +610,20 @@ WLANTL_BaSessionDel
     return VOS_STATUS_E_FAULT;
   }
 
-  pClientSTA = pTLCb->atlSTAClients[ucSTAId];
-
-  if ( NULL == pClientSTA )
+  if (( 0 == pTLCb->atlSTAClients[ucSTAId].ucExists ) &&
+      ( 0 == pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucExists ))
   {
-    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-        "WLAN TL:Client Memory was not allocated on %s", __func__));
-    return VOS_STATUS_E_FAILURE;
-  }
-
-  if (( 0 == pClientSTA->ucExists ) &&
-      ( 0 == pClientSTA->atlBAReorderInfo[ucTid].ucExists ))
-  {
-    VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
+    VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
           "WLAN TL:Station was not yet registered on WLANTL_BaSessionDel");
     return VOS_STATUS_E_EXISTS;
   }
-  else if(( 0 == pClientSTA->ucExists ) &&
-          ( 0 != pClientSTA->atlBAReorderInfo[ucTid].ucExists ))
+  else if(( 0 == pTLCb->atlSTAClients[ucSTAId].ucExists ) &&
+          ( 0 != pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucExists ))
   {
     VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
           "STA was deleted but BA info is still there, just remove BA info");
 
-    reOrderInfo = &pClientSTA->atlBAReorderInfo[ucTid];
+    reOrderInfo = &pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid];
     reOrderInfo->reorderBuffer->isAvailable = VOS_TRUE;
     memset(&reOrderInfo->reorderBuffer->arrayBuffer[0],
            0,
@@ -676,9 +637,9 @@ WLANTL_BaSessionDel
   /*------------------------------------------------------------------------
     Verify that BA session was added
    ------------------------------------------------------------------------*/
-  if ( 0 == pClientSTA->atlBAReorderInfo[ucTid].ucExists )
+  if ( 0 == pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucExists )
   {
-    VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
+    VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
                "WLAN TL:BA session does not exists on WLANTL_BaSessionDel");
     return VOS_STATUS_E_EXISTS;
   }
@@ -687,7 +648,7 @@ WLANTL_BaSessionDel
   /*------------------------------------------------------------------------
      Send all pending packets to HDD 
    ------------------------------------------------------------------------*/
-  reOrderInfo = &pClientSTA->atlBAReorderInfo[ucTid];
+  reOrderInfo = &pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid];
 
   /*------------------------------------------------------------------------
      Invalidate reorder info here. This ensures that no packets are 
@@ -697,10 +658,10 @@ WLANTL_BaSessionDel
   if(!VOS_IS_STATUS_SUCCESS(lockStatus))
   {
     TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-          "Unable to acquire reorder vos lock in %s\n", __func__));
+          "Unable to acquire reorder vos lock in %s\n", __FUNCTION__));
     return lockStatus;
   }
-  pClientSTA->atlBAReorderInfo[ucTid].ucExists = 0;
+  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucExists = 0;
 
   TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
                "WLAN TL: Fwd all packets to HDD on WLANTL_BaSessionDel"));
@@ -727,14 +688,16 @@ WLANTL_BaSessionDel
              "WLAN TL: Chaining was successful sending all pkts to HDD : %x",
               vosDataBuff ));
 
-    if ( WLAN_STA_SOFTAP == pClientSTA->wSTADesc.wSTAType )
+#ifdef WLAN_SOFTAP_FEATURE
+    if ( WLAN_STA_SOFTAP == pTLCb->atlSTAClients[ucSTAId].wSTADesc.wSTAType )
     {
       WLANTL_FwdPktToHDD( pvosGCtx, vosDataBuff, ucSTAId);
     }
     else
+#endif
     {
       wRxMetaInfo.ucUP = ucTid;
-      pClientSTA->pfnSTARx( pvosGCtx, vosDataBuff, ucSTAId,
+      pTLCb->atlSTAClients[ucSTAId].pfnSTARx( pvosGCtx, vosDataBuff, ucSTAId,
                                             &wRxMetaInfo );
     }
   }
@@ -772,8 +735,8 @@ WLANTL_BaSessionDel
   /*------------------------------------------------------------------------
     Delete session 
    ------------------------------------------------------------------------*/
-  pClientSTA->atlBAReorderInfo[ucTid].usCount  = 0;
-  pClientSTA->atlBAReorderInfo[ucTid].ucCIndex = 0;
+  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].usCount  = 0;
+  pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucCIndex = 0;
   reOrderInfo->winSize   = 0;
   reOrderInfo->SSN       = 0;
   reOrderInfo->sessionID = 0;
@@ -863,14 +826,13 @@ WLANTL_AMSDUProcess
   v_U8_t          ucFsf; /* First AMSDU sub frame */
   v_U8_t          ucAef; /* Error in AMSDU sub frame */
   WLANTL_CbType*  pTLCb = NULL; 
-  WLANTL_STAClientType *pClientSTA = NULL;
   v_U8_t          MPDUHeaderAMSDUHeader[WLANTL_MPDU_HEADER_LEN + TL_AMSDU_SUBFRM_HEADER_LEN];
   v_U16_t         subFrameLength;
   v_U16_t         paddingSize;
   VOS_STATUS      vStatus = VOS_STATUS_SUCCESS;
   v_U16_t         MPDUDataOffset;
   v_U16_t         packetLength; 
-  static v_U32_t  numAMSDUFrames;
+  static v_U32_t  numAMSDUFrames = 0;
   vos_pkt_t*      vosDataBuff;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
   /*------------------------------------------------------------------------
@@ -896,22 +858,17 @@ WLANTL_AMSDUProcess
     return VOS_STATUS_E_FAULT;
   }
 
-  pClientSTA = pTLCb->atlSTAClients[ucSTAId];
-
-  if ( NULL == pClientSTA )
-  {
-      TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-          "WLAN TL:Client Memory was not allocated on %s", __func__));
-      return VOS_STATUS_E_FAILURE;
-  }
-
   /*------------------------------------------------------------------------
     Check frame
    ------------------------------------------------------------------------*/
   ucAef =  (v_U8_t)WDA_GET_RX_AEF( pvBDHeader );
   ucFsf =  (v_U8_t)WDA_GET_RX_ESF( pvBDHeader );
+#ifndef FEATURE_WLAN_INTEGRATED_SOC
+  MPDUDataOffset = (v_U16_t)WDA_GET_RX_MPDU_DATA_OFFSET(pvBDHeader) - WLANHAL_RX_BD_HEADER_SIZE;
+#else
   /* On Prima, MPDU data offset not includes BD header size */
   MPDUDataOffset = (v_U16_t)WDA_GET_RX_MPDU_DATA_OFFSET(pvBDHeader);
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
 
   if ( WLANHAL_RX_BD_AEF_SET == ucAef ) 
   {
@@ -930,15 +887,6 @@ WLANTL_AMSDUProcess
      * AMSDU Header should be removed
      * MPDU header should be stored into context to recover next frames
      */
-    /* Assumed here Address4 is never part of AMSDU received at TL */
-    if (ucMPDUHLen > WLANTL_MPDU_HEADER_LEN)
-    {
-      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"MPDU Header length (%d) is greater",ucMPDUHLen));
-      vos_pkt_return_packet(vosDataBuff);
-      *ppVosDataBuff = NULL;
-      return VOS_STATUS_SUCCESS; /*Not a transport error*/
-    }
-
     vStatus = vos_pkt_pop_head(vosDataBuff, MPDUHeaderAMSDUHeader, ucMPDUHLen + TL_AMSDU_SUBFRM_HEADER_LEN);
     if(!VOS_IS_STATUS_SUCCESS(vStatus))
     {
@@ -947,13 +895,13 @@ WLANTL_AMSDUProcess
       *ppVosDataBuff = NULL;
       return VOS_STATUS_SUCCESS; /*Not a transport error*/ 
     }
-    pClientSTA->ucMPDUHeaderLen = ucMPDUHLen;
-    memcpy(pClientSTA->aucMPDUHeader, MPDUHeaderAMSDUHeader, ucMPDUHLen);
-    /* AMSDU header stored to handle garbage data within next frame */
+    pTLCb->atlSTAClients[ucSTAId].ucMPDUHeaderLen = ucMPDUHLen;
+    memcpy(pTLCb->atlSTAClients[ucSTAId].aucMPDUHeader, MPDUHeaderAMSDUHeader, ucMPDUHLen);
+    /* AMSDU header stored to handle gabage data within next frame */
   }
   else
   {
-    /* Trim garbage, size is frameLoop */
+    /* Trim gabage, size is frameLoop */
     if(MPDUDataOffset > 0)
     {
       vStatus = vos_pkt_trim_head(vosDataBuff, MPDUDataOffset);
@@ -978,7 +926,7 @@ WLANTL_AMSDUProcess
   } /* End of henalding not first sub frame specific */
 
   /* Put in MPDU header into all the frame */
-  vStatus = vos_pkt_push_head(vosDataBuff, pClientSTA->aucMPDUHeader, pClientSTA->ucMPDUHeaderLen);
+  vStatus = vos_pkt_push_head(vosDataBuff, pTLCb->atlSTAClients[ucSTAId].aucMPDUHeader, pTLCb->atlSTAClients[ucSTAId].ucMPDUHeaderLen);
   if(!VOS_IS_STATUS_SUCCESS(vStatus))
   {
     TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"MPDU Header Push back fail"));
@@ -1059,7 +1007,6 @@ VOS_STATUS WLANTL_MSDUReorder
 )
 {
    WLANTL_BAReorderType *currentReorderInfo;
-   WLANTL_STAClientType *pClientSTA = NULL;
    vos_pkt_t            *vosPktIdx;
    v_U8_t               ucOpCode; 
    v_U8_t               ucSlotIdx;
@@ -1071,7 +1018,9 @@ VOS_STATUS WLANTL_MSDUReorder
    VOS_STATUS           timerStatus = VOS_STATUS_SUCCESS; 
    VOS_TIMER_STATE      timerState;
    v_SIZE_t             rxFree;
+#ifdef ANI_CHIPSET_VOLANS
    v_U64_t              ullreplayCounter = 0; /* 48-bit replay counter */
+#endif
    if((NULL == pTLCb) || (*vosDataBuff == NULL))
    {
       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Invalid ARG pTLCb 0x%p, vosDataBuff 0x%p",
@@ -1079,16 +1028,7 @@ VOS_STATUS WLANTL_MSDUReorder
       return VOS_STATUS_E_INVAL;
    }
 
-   pClientSTA = pTLCb->atlSTAClients[ucSTAId];
-
-   if ( NULL == pClientSTA )
-   {
-       TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-           "WLAN TL:Client Memory was not allocated on %s", __func__));
-       return VOS_STATUS_E_FAILURE;
-   }
-
-   currentReorderInfo = &pClientSTA->atlBAReorderInfo[ucTid];
+   currentReorderInfo = &pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid];
 
    lockStatus = vos_lock_acquire(&currentReorderInfo->reorderLock);
    if(!VOS_IS_STATUS_SUCCESS(lockStatus))
@@ -1097,7 +1037,7 @@ VOS_STATUS WLANTL_MSDUReorder
       return lockStatus;
    }
 
-   if( pClientSTA->atlBAReorderInfo[ucTid].ucExists == 0 )
+   if( pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucExists == 0 )
    {
      vos_lock_release(&currentReorderInfo->reorderLock);
      return VOS_STATUS_E_INVAL;
@@ -1111,7 +1051,7 @@ VOS_STATUS WLANTL_MSDUReorder
 
 #ifdef WLANTL_HAL_VOLANS
    /* Replay check code : check whether replay check is needed or not */
-   if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
+   if(VOS_TRUE == pTLCb->atlSTAClients[ucSTAId].ucIsReplayCheckValid)
    {
            /* Getting 48-bit replay counter from the RX BD */
            ullreplayCounter = WDA_DS_GetReplayCounter(aucBDHeader);
@@ -1149,11 +1089,13 @@ VOS_STATUS WLANTL_MSDUReorder
          status = WLANTL_QueueCurrent(currentReorderInfo,
                                       vosDataBuff,
                                       ucSlotIdx);
-         if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
+#ifdef ANI_CHIPSET_VOLANS
+         if(VOS_TRUE == pTLCb->atlSTAClients[ucSTAId].ucIsReplayCheckValid)
          {
              WLANTL_FillReplayCounter(currentReorderInfo,
                                ullreplayCounter, ucSlotIdx);
          }
+#endif
          if(VOS_STATUS_E_RESOURCES == status)
          {
             /* This is the case slot index is already cycle one route, route all the frames Qed */
@@ -1250,11 +1192,13 @@ VOS_STATUS WLANTL_MSDUReorder
          status = WLANTL_QueueCurrent(currentReorderInfo,
                                       vosDataBuff,
                                       ucSlotIdx);
-           if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
+#ifdef ANI_CHIPSET_VOLANS
+           if(VOS_TRUE == pTLCb->atlSTAClients[ucSTAId].ucIsReplayCheckValid)
            {
                WLANTL_FillReplayCounter(currentReorderInfo,
                                  ullreplayCounter, ucSlotIdx);
            }
+#endif
          if(VOS_STATUS_E_RESOURCES == status)
          {
             /* This is the case slot index is already cycle one route, route all the frames Qed */
@@ -1311,11 +1255,13 @@ VOS_STATUS WLANTL_MSDUReorder
          status = WLANTL_QueueCurrent(currentReorderInfo,
                                       vosDataBuff,
                                       ucSlotIdx);
-           if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
+#ifdef ANI_CHIPSET_VOLANS
+           if(VOS_TRUE == pTLCb->atlSTAClients[ucSTAId].ucIsReplayCheckValid)
            {
                WLANTL_FillReplayCounter(currentReorderInfo,
                                  ullreplayCounter, ucSlotIdx);
            }
+#endif
          if(VOS_STATUS_E_RESOURCES == status)
          {
             vos_pkt_return_packet(vosPktIdx); 
@@ -1446,11 +1392,13 @@ VOS_STATUS WLANTL_MSDUReorder
          status = WLANTL_QueueCurrent(currentReorderInfo,
                                       vosDataBuff,
                                       ucSlotIdx);
-           if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
+#ifdef ANI_CHIPSET_VOLANS
+           if(VOS_TRUE == pTLCb->atlSTAClients[ucSTAId].ucIsReplayCheckValid)
            {
                WLANTL_FillReplayCounter(currentReorderInfo,
                                  ullreplayCounter, ucSlotIdx);
            }
+#endif
          if(!VOS_IS_STATUS_SUCCESS(status))
          {
             TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Q Current frame fail %d",
@@ -1768,6 +1716,7 @@ VOS_STATUS WLANTL_ChainFrontPkts
 
    return status; 
 }/*WLANTL_ChainFrontPkts*/
+#ifdef ANI_CHIPSET_VOLANS
 /*==========================================================================
  
   FUNCTION    WLANTL_FillReplayCounter
@@ -1810,4 +1759,5 @@ void WLANTL_FillReplayCounter
                //pwBaReorder->reorderBuffer->ullReplayCounter);
    return;
 }/*WLANTL_FillReplayCounter*/
+#endif /*End of #ifdef WLANTL_HAL_VOLANS*/
 

@@ -1,25 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -55,7 +35,14 @@
 #include "wniApi.h"
 #include "sirApi.h"
 #include "aniGlobal.h"
+#ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
+#include "halDataStruct.h"
+#endif
+#if (WNI_POLARIS_FW_PRODUCT == AP)
+#include "wniCfgAp.h"
+#else
 #include "wniCfgSta.h"
+#endif
 
 #include "utilsApi.h"
 #include "limTypes.h"
@@ -122,9 +109,10 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
     // Get reasonCode from Disassociation frame body
     reasonCode = sirReadU16(pBody);
 
-    PELOG2(limLog(pMac, LOG2,
-        FL("Received Disassoc frame (mlm state %d sme state %d), with reason code %d from "MAC_ADDRESS_STR), 
-        psessionEntry->limMlmState, psessionEntry->limSmeState, reasonCode, MAC_ADDR_ARRAY(pHdr->sa));)
+    PELOGE(limLog(pMac, LOGE,
+        FL("Received Disassoc frame (mlm state %d sme state %d), with reason code %d from \n"), 
+        psessionEntry->limMlmState, psessionEntry->limSmeState, reasonCode);)
+    limPrintMacAddr(pMac, pHdr->sa, LOGE);
 
     /**
    * Extract 'associated' context for STA, if any.
@@ -143,14 +131,6 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
            reasonCode);
         limPrintMacAddr(pMac, pHdr->sa, LOG1);)
 
-        return;
-    }
-
-    if (limCheckDisassocDeauthAckPending(pMac, (tANI_U8*)pHdr->sa))
-    {
-        PELOGW(limLog(pMac, LOGE, 
-                    FL("Ignore the DisAssoc received, while waiting for ack of disassoc/deauth\n"));)
-        limCleanUpDisassocDeauthReq(pMac,(tANI_U8*)pHdr->sa, 1);
         return;
     }
 
@@ -226,7 +206,7 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
             case eSIR_MAC_DISASSOC_LEAVING_BSS_REASON:
                 // Valid reasonCode in received Disassociation frame
                 // as long as we're not about to channel switch
-                if(psessionEntry->gLimChannelSwitch.state != eLIM_CHANNEL_SWITCH_IDLE)
+                if(pMac->lim.gLimChannelSwitch.state != eLIM_CHANNEL_SWITCH_IDLE)
                 {
                     limLog(pMac, LOGW,
                         FL("Ignoring disassoc frame due to upcoming "
@@ -261,9 +241,9 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
 
     // Disassociation from peer MAC entity
 
-   PELOGE(limLog(pMac, LOGE,
-           FL("Received Disassoc frame from sta with assocId=%d with reasonCode=%d. Peer MAC is "MAC_ADDRESS_STR),
-           pStaDs->assocId, reasonCode, MAC_ADDR_ARRAY(pHdr->sa));)
+   PELOG3(limLog(pMac, LOG3,
+           FL("Received Disassoc frame from sta with assocId=%d, with reasonCode=%d\n"),
+           pStaDs->assocId, reasonCode);)
 
     if ((pStaDs->mlmStaContext.mlmState == eLIM_MLM_WT_DEL_STA_RSP_STATE) ||
         (pStaDs->mlmStaContext.mlmState == eLIM_MLM_WT_DEL_BSS_RSP_STATE))
@@ -301,6 +281,9 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
                   sizeof(tSirMacAddr));
     mlmDisassocInd.reasonCode =
         (tANI_U8) pStaDs->mlmStaContext.disassocReason;
+#if (WNI_POLARIS_FW_PRODUCT == AP)
+    mlmDisassocInd.aid        = pStaDs->assocId;
+#endif
     mlmDisassocInd.disassocTrigger = eLIM_PEER_ENTITY_DISASSOC;
 
     /* Update PE session Id  */

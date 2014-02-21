@@ -5,6 +5,7 @@ snd-soc-dmaengine-pcm-objs := soc-dmaengine-pcm.o
 obj-$(CONFIG_SND_SOC_DMAENGINE_PCM) += snd-soc-dmaengine-pcm.o
 
 obj-$(CONFIG_SND_SOC)	+= snd-soc-core.o
+obj-$(CONFIG_SOUND_CONTROL_HAX_3_GPL) += sound_control_3_gpl.o
 obj-$(CONFIG_SND_SOC)	+= codecs/
 obj-$(CONFIG_SND_SOC)	+= atmel/
 obj-$(CONFIG_SND_SOC)	+= au1x/

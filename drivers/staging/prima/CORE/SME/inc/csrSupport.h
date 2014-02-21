@@ -1,25 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -819,21 +799,9 @@ eHalStatus csrReassoc(tpAniSirGlobal pMac, tANI_U32 sessionId,
                       tCsrRoamModifyProfileFields *pModProfileFields,
                       tANI_U32 *pRoamId, v_BOOL_t fForce);
 
-eHalStatus
-csrIsconcurrentsessionValid(tpAniSirGlobal pMac,tANI_U32 cursessionId,
-                                 tVOS_CON_MODE currBssPersona);
-
-//Update beaconInterval for P2P-GO case if it is different 
-eHalStatus csrUpdatep2pBeaconInterval(tpAniSirGlobal pMac);
-
-//BeaconInterval validation for MCC support
-eHalStatus csrValidateMCCBeaconInterval(tpAniSirGlobal pMac, tANI_U8 channelId, 
-                                     tANI_U16 *beaconInterval, tANI_U32 cursessionId,
-                                     tVOS_CON_MODE currBssPersona);
-
 #ifdef WLAN_FEATURE_VOWIFI_11R
 tANI_BOOLEAN csrIsProfile11r( tCsrRoamProfile *pProfile );
-tANI_BOOLEAN csrIsAuthType11r( eCsrAuthType AuthType, tANI_U8 mdiePresent);
+tANI_BOOLEAN csrIsAuthType11r( eCsrAuthType AuthType );
 #endif
 
 #ifdef FEATURE_WLAN_CCX
