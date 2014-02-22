@@ -54,6 +54,9 @@ modules.builtin
 /.config
 /.version
 /.gitignore~
+/include/generated/utsrelease.h
+/include/generated/compile.h
+include/config/kernel.release
 
 #
 # Debian directory (make deb-pkg)
