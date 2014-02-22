@@ -3,7 +3,7 @@
 # Take LTE Ultimate Kernel Source #             
 #           bestmjh47             #
 ###################################
-TOOLCHAINPATH=/home/moon/toolchain/linaro-4.8.3-a9/bin
+TOOLCHAINPATH=/home/moon/toolchain/linaro-4.8.3/bin
 export ARCH=arm
 #export CROSS_COMPILE=/home/moon/toolchain/arm-linux-androideabi-4.6/bin/arm-linux-androideabi-
 export CROSS_COMPILE=$TOOLCHAINPATH/arm-gnueabi-
