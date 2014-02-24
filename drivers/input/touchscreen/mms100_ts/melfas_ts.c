@@ -53,7 +53,7 @@
 #define TS_READ_VERSION_ADDR	0xF0
 
 #define TS_READ_REGS_LEN 		66
-#define MELFAS_MAX_TOUCH		10
+#define MELFAS_MAX_TOUCH		5
 #define MAX_ESD_RETRY			3
 
 #define DEBUG_PRINT 			0
