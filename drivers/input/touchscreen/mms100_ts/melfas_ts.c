@@ -53,7 +53,9 @@
 #define TS_READ_VERSION_ADDR	0xF0
 
 #define TS_READ_REGS_LEN 		66
-#define MELFAS_MAX_TOUCH		5
+// Tried to fix touch issue, but I think it was failed" 
+//#define MELFAS_MAX_TOUCH		5
+#define MELFAS_MAX_TOUCH		10
 #define MAX_ESD_RETRY			3
 
 #define DEBUG_PRINT 			0
