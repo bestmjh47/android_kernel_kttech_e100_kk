@@ -54,9 +54,13 @@ modules.builtin
 /.version
 /.gitignore~
 ./config.old
+/.Module.symvers
+/.config
+/.config.old
 /include/generated/utsrelease.h
 /include/generated/compile.h
 include/config/kernel.release
+include/config/auto.conf
 
 #
 # Debian directory (make deb-pkg)
@@ -76,7 +80,13 @@ include/config
 include/linux/version.h
 include/generated
 arch/*/include/generated
-
+include/config/kernel.release
+kernel/config_data.gz
+include/generated/utsrelease.h
+include/generated/compile.h
+kernel/config_data.h
+include/config/tristate.conf
+include/generated/autoconf.h
 .config
 .config.old
 
