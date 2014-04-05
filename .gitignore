@@ -53,6 +53,7 @@ modules.builtin
 /.config
 /.version
 /.gitignore~
+./config.old
 /include/generated/utsrelease.h
 /include/generated/compile.h
 include/config/kernel.release
@@ -75,6 +76,9 @@ include/config
 include/linux/version.h
 include/generated
 arch/*/include/generated
+
+.config
+.config.old
 
 # stgit generated dirs
 patches-*
