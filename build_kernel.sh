@@ -12,11 +12,11 @@ make bestmjh47_defconfig
 echo #############################
 echo #       Now Starting...     #
 echo #############################
-make -j15
+make -j25
 echo Compiling Finished!
 cp arch/arm/boot/zImage zImage
 echo Striping Modules...
-rm -rf modules/*
+rm -rf Modules/*
 find -name '*.ko' -exec cp -av {} Modules \;
         for i in Modules/*; do $TOOLCHAINPATH/arm-gnueabi-strip --strip-unneeded $i;done;\
 mkdir -p Modules/etc/firmware/wlan/prima
