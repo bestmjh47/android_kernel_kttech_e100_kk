@@ -60,6 +60,10 @@ modules.builtin
 /include/generated/utsrelease.h
 /include/generated/compile.h
 include/config/kernel.release
+/.include/config/kernel.release
+/.include/generated/compile.h
+/.include/generated/utsrelease.h
+
 include/config/auto.conf
 
 #
@@ -81,7 +85,10 @@ include/linux/version.h
 include/generated
 arch/*/include/generated
 include/config/kernel.release
+arch/arm/boot/compressed/piggy.gzip
 kernel/config_data.gz
+arch/arm/boot/compressed/vmlinux
+arch/arm/boot/Image
 include/generated/utsrelease.h
 include/generated/compile.h
 kernel/config_data.h
