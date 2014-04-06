@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -32,11 +52,7 @@
 #include "palTypes.h"
 #include "aniGlobal.h"
 #include "sirCommon.h"
-#if (WNI_POLARIS_FW_PRODUCT == AP)
-#include "wniCfgAp.h"
-#else
 #include "wniCfgSta.h"
-#endif
 #include "limUtils.h"
 #include "limAssocUtils.h"
 #include "limStaHashApi.h"
@@ -223,13 +239,13 @@ ibss_sta_caps_update(
     tLimIbssPeerNode *pPeerNode,
     tpPESession       psessionEntry)
 {
-    tANI_U16      aid;
+    tANI_U16      peerIdx;
     tpDphHashNode pStaDs;
 
     pPeerNode->beaconHBCount++; //Update beacon count.
 
     // if the peer node exists, update its qos capabilities
-    if ((pStaDs = dphLookupHashEntry(pMac, pPeerNode->peerMacAddr, &aid, &psessionEntry->dph.dphHashTable)) == NULL)
+    if ((pStaDs = dphLookupHashEntry(pMac, pPeerNode->peerMacAddr, &peerIdx, &psessionEntry->dph.dphHashTable)) == NULL)
         return;
 
 
@@ -325,10 +341,16 @@ ibss_sta_rates_update(
     tLimIbssPeerNode *pPeer,
     tpPESession       psessionEntry)
 {
+#ifdef WLAN_FEATURE_11AC
+    limPopulateMatchingRateSet(pMac, pStaDs, &pPeer->supportedRates,
+                               &pPeer->extendedRates, pPeer->supportedMCSSet,
+                               &pStaDs->mlmStaContext.propRateSet,psessionEntry,NULL);
+#else
     // Populate supported rateset
     limPopulateMatchingRateSet(pMac, pStaDs, &pPeer->supportedRates,
                                &pPeer->extendedRates, pPeer->supportedMCSSet,
                                &pStaDs->mlmStaContext.propRateSet,psessionEntry);
+#endif
 
     pStaDs->mlmStaContext.capabilityInfo = pPeer->capabilityInfo;
 } /*** end ibss_sta_info_update() ***/
@@ -423,12 +445,12 @@ ibss_dph_entry_add(
     tpDphHashNode   *ppSta,
     tpPESession     psessionEntry)
 {
-    tANI_U16      aid;
+    tANI_U16      peerIdx;
     tpDphHashNode pStaDs;
 
     *ppSta = NULL;
 
-    pStaDs = dphLookupHashEntry(pMac, peerAddr, &aid, &psessionEntry->dph.dphHashTable);
+    pStaDs = dphLookupHashEntry(pMac, peerAddr, &peerIdx, &psessionEntry->dph.dphHashTable);
     if (pStaDs != NULL)
     {
         /* Trying to add context for already existing STA in IBSS */
@@ -442,20 +464,20 @@ ibss_dph_entry_add(
      * AID and then add an entry to hash table maintained
      * by DPH module.
      */
-    aid = limAssignAID(pMac);
+    peerIdx = limAssignPeerIdx(pMac, psessionEntry);
 
-    pStaDs = dphGetHashEntry(pMac, aid, &psessionEntry->dph.dphHashTable);
+    pStaDs = dphGetHashEntry(pMac, peerIdx, &psessionEntry->dph.dphHashTable);
     if (pStaDs)
     {
         (void) limDelSta(pMac, pStaDs, false /*asynchronous*/,psessionEntry);
-        limDeleteDphHashEntry(pMac, pStaDs->staAddr, aid,psessionEntry);
+        limDeleteDphHashEntry(pMac, pStaDs->staAddr, peerIdx,psessionEntry);
     }
 
-    pStaDs = dphAddHashEntry(pMac, peerAddr, aid, &psessionEntry->dph.dphHashTable);
+    pStaDs = dphAddHashEntry(pMac, peerAddr, peerIdx, &psessionEntry->dph.dphHashTable);
     if (pStaDs == NULL)
     {
         // Could not add hash table entry
-        PELOGE(limLog(pMac, LOGE, FL("could not add hash entry at DPH for aid=%d MACaddr:\n"), aid);)
+        PELOGE(limLog(pMac, LOGE, FL("could not add hash entry at DPH for peerIdx/aid=%d MACaddr:\n"), peerIdx);)
         limPrintMacAddr(pMac, peerAddr, LOGE);
         return eSIR_FAILURE;
     }
@@ -550,20 +572,10 @@ ibss_bss_add(
      * so that the IBSS doesnt blindly start with short slot = 1. If IBSS start is part of coalescing then it will adapt
      * to peer's short slot using code below.
      */
-    if (wlan_cfgGetInt(pMac, WNI_CFG_SHORT_SLOT_TIME, &cfg)
-                   != eSIR_SUCCESS)
-    {
-        limLog(pMac, LOGP, FL("cfg get WNI_CFG_SHORT_SLOT_TIME failed\n"));
-        return;
-    }
     /* If cfg is already set to current peer's capability then no need to set it again */
-    if (cfg != pBeacon->capabilityInfo.shortSlotTime)
+    if (psessionEntry->shortSlotTimeSupported != pBeacon->capabilityInfo.shortSlotTime)
     {
-        if (cfgSetInt(pMac, WNI_CFG_SHORT_SLOT_TIME, pBeacon->capabilityInfo.shortSlotTime) != eSIR_SUCCESS)
-        {
-            limLog(pMac, LOGP, FL("could not update short slot time at CFG\n"));
-            return;
-        }
+        psessionEntry->shortSlotTimeSupported = pBeacon->capabilityInfo.shortSlotTime;
     }
     palCopyMemory( pMac->hHdd,
        (tANI_U8 *) &psessionEntry->pLimStartBssReq->operationalRateSet,
@@ -615,10 +627,10 @@ ibss_bss_add(
     mlmStartReq.bssType             = eSIR_IBSS_MODE;
     mlmStartReq.beaconPeriod        = pBeacon->beaconInterval;
     mlmStartReq.nwType              = psessionEntry->pLimStartBssReq->nwType; //psessionEntry->nwType is also OK????
-    mlmStartReq.htCapable           = psessionEntry->htCapabality;
+    mlmStartReq.htCapable           = psessionEntry->htCapability;
     mlmStartReq.htOperMode          = pMac->lim.gHTOperMode;
     mlmStartReq.dualCTSProtection   = pMac->lim.gHTDualCTSProtection;
-    mlmStartReq.txChannelWidthSet   = pMac->lim.gHTRecommendedTxWidthSet;
+    mlmStartReq.txChannelWidthSet   = psessionEntry->htRecommendedTxWidthSet;
 
     #if 0
     if (wlan_cfgGetInt(pMac, WNI_CFG_CURRENT_CHANNEL, &cfg) != eSIR_SUCCESS)
@@ -724,7 +736,7 @@ void limIbssDeleteAllPeers( tpAniSirGlobal pMac ,tpPESession psessionEntry)
 {
     tLimIbssPeerNode    *pCurrNode, *pTempNode;
     tpDphHashNode pStaDs;
-    tANI_U16 aid;
+    tANI_U16 peerIdx;
 
     pCurrNode = pTempNode = pMac->lim.gLimIbssPeerList;
 
@@ -740,14 +752,14 @@ void limIbssDeleteAllPeers( tpAniSirGlobal pMac ,tpPESession psessionEntry)
               * Since it is called to remove all peers, just delete from dph,
               * no need to do any beacon related params i.e., dont call limDeleteDphHashEntry
               */
-        pStaDs = dphLookupHashEntry(pMac, pCurrNode->peerMacAddr, &aid, &psessionEntry->dph.dphHashTable);
+        pStaDs = dphLookupHashEntry(pMac, pCurrNode->peerMacAddr, &peerIdx, &psessionEntry->dph.dphHashTable);
         if( pStaDs )
         {
 
             ibss_status_chg_notify( pMac, pCurrNode->peerMacAddr, pStaDs->staIndex, 
                                     pStaDs->ucUcastSig, pStaDs->ucBcastSig,
                                     eWNI_SME_IBSS_PEER_DEPARTED_IND, psessionEntry->smeSessionId );
-            dphDeleteHashEntry(pMac, pStaDs->staAddr, aid, &psessionEntry->dph.dphHashTable);
+            dphDeleteHashEntry(pMac, pStaDs->staAddr, peerIdx, &psessionEntry->dph.dphHashTable);
         }
 
         pTempNode = pCurrNode->next;
@@ -1006,7 +1018,7 @@ limIbssDecideProtection(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpUpdateBeaco
         limGetPhyMode(pMac, &phyMode, psessionEntry);
 
         //We are 11G or 11n. Check if we need protection from 11b Stations.
-        if ((phyMode == WNI_CFG_PHY_MODE_11G) || (pMac->lim.htCapability))
+        if ((phyMode == WNI_CFG_PHY_MODE_11G) || (psessionEntry->htCapability))
         {
             /* As we found in the past, it is possible that a 11n STA sends
              * Beacon with HT IE but not ERP IE.  So the absense of ERP IE
@@ -1083,7 +1095,7 @@ limIbssStaAdd(
 
             ibss_sta_info_update(pMac, pStaDs, pPeerNode,psessionEntry);
             PELOGW(limLog(pMac, LOGW, FL("initiating ADD STA for the IBSS peer.\n"));)
-            retCode = limAddSta(pMac, pStaDs,psessionEntry);
+            retCode = limAddSta(pMac, pStaDs, false, psessionEntry);
             if(retCode != eSIR_SUCCESS)
             {
                 PELOGE(limLog(pMac, LOGE, FL("ibss-sta-add failed (reason %x)\n"), retCode);)
@@ -1128,7 +1140,7 @@ limIbssAddStaRsp(
     void *msg,tpPESession psessionEntry)
 {
     tpDphHashNode   pStaDs;
-    tANI_U16        aid;
+    tANI_U16        peerIdx;
     tpAddStaParams  pAddStaParams = (tpAddStaParams) msg;
 
     SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
@@ -1138,7 +1150,7 @@ limIbssAddStaRsp(
         return eSIR_FAILURE;
     }
 
-    pStaDs = dphLookupHashEntry(pMac, pAddStaParams->staMac, &aid, &psessionEntry->dph.dphHashTable);
+    pStaDs = dphLookupHashEntry(pMac, pAddStaParams->staMac, &peerIdx, &psessionEntry->dph.dphHashTable);
     if (pStaDs == NULL)
     {
         PELOGE(limLog(pMac, LOGE, FL("IBSS: ADD_STA_RSP for unknown MAC addr "));)
@@ -1237,15 +1249,12 @@ void limIbssAddBssRspWhenCoalescing(tpAniSirGlobal  pMac, void *msg, tpPESession
     limSendSmeWmStatusChangeNtf(pMac, eSIR_SME_JOINED_NEW_BSS,
                                 (tANI_U32 *) &newBssInfo,
                                 infoLen,pSessionEntry->smeSessionId);
-#ifdef WLAN_SOFTAP_FEATURE
     {
         //Configure beacon and send beacons to HAL
         limSendBeaconInd(pMac, pSessionEntry);
     }
-#endif
-    
 
-    end:
+ end:
     ibss_coalesce_free(pMac);
 }
 
@@ -1315,18 +1324,14 @@ limIbssDelBssRsp(
     limIbssDelete(pMac,psessionEntry);
     psessionEntry->limMlmState = eLIM_MLM_IDLE_STATE;
 
-    MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
+    MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, psessionEntry->limMlmState));
 
     psessionEntry->limSystemRole = eLIM_STA_ROLE;
 
     /* Change the short slot operating mode to Default (which is 1 for now) so that when IBSS starts next time with Libra
      * as originator, it picks up the default. This enables us to remove hard coding of short slot = 1 from limApplyConfiguration 
      */
-    if (cfgSetInt(pMac, WNI_CFG_SHORT_SLOT_TIME, WNI_CFG_SHORT_SLOT_TIME_STADEF) != eSIR_SUCCESS)
-    {
-        limLog(pMac, LOGP, FL("could not update short slot time at CFG\n"));
-        return;
-    }
+    psessionEntry->shortSlotTimeSupported = WNI_CFG_SHORT_SLOT_TIME_STADEF;
 
     end:
     if(pDelBss != NULL)
@@ -1369,7 +1374,7 @@ limIbssCoalesce(
     tANI_U16            fTsfLater,
     tpPESession         psessionEntry)
 {
-    tANI_U16            aid;
+    tANI_U16            peerIdx;
     tSirMacAddr         currentBssId;
     tLimIbssPeerNode    *pPeerNode;
     tpDphHashNode       pStaDs;
@@ -1437,7 +1442,7 @@ limIbssCoalesce(
         }
         ibss_peer_add(pMac, pPeerNode);
 
-        pStaDs = dphLookupHashEntry(pMac, pPeerNode->peerMacAddr, &aid, &psessionEntry->dph.dphHashTable);
+        pStaDs = dphLookupHashEntry(pMac, pPeerNode->peerMacAddr, &peerIdx, &psessionEntry->dph.dphHashTable);
         if (pStaDs != NULL)
         {
             /// DPH node already exists for the peer
@@ -1454,7 +1459,7 @@ limIbssCoalesce(
         }
 
         // Decide protection mode
-        pStaDs = dphLookupHashEntry(pMac, pPeerNode->peerMacAddr, &aid, &psessionEntry->dph.dphHashTable);
+        pStaDs = dphLookupHashEntry(pMac, pPeerNode->peerMacAddr, &peerIdx, &psessionEntry->dph.dphHashTable);
         if(pMac->lim.gLimProtectionControl != WNI_CFG_FORCE_POLICY_PROTECTION_DISABLE)
             limIbssDecideProtection(pMac, pStaDs, &beaconParams, psessionEntry);
 
@@ -1481,7 +1486,7 @@ limIbssCoalesce(
         psessionEntry->limIbssActive = true;
         limSendSmeWmStatusChangeNtf(pMac, eSIR_SME_IBSS_ACTIVE, NULL, 0, psessionEntry->smeSessionId);
         limHeartBeatDeactivateAndChangeTimer(pMac, psessionEntry);
-        MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_HEART_BEAT_TIMER));
+        MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, psessionEntry->peSessionId, eLIM_HEART_BEAT_TIMER));
         if (limActivateHearBeatTimer(pMac) != TX_SUCCESS)
             limLog(pMac, LOGP, FL("could not activate Heartbeat timer\n"));
     }
@@ -1494,7 +1499,7 @@ void limIbssHeartBeatHandle(tpAniSirGlobal pMac,tpPESession psessionEntry)
 {
     tLimIbssPeerNode *pTempNode, *pPrevNode;
     tLimIbssPeerNode *pTempNextNode = NULL;
-    tANI_U16      aid;
+    tANI_U16      peerIdx;
     tpDphHashNode pStaDs;
     tANI_U32 threshold;
     tANI_U16 staIndex;
@@ -1538,7 +1543,7 @@ void limIbssHeartBeatHandle(tpAniSirGlobal pMac,tpPESession psessionEntry)
             if(pTempNode->heartbeatFailure >= threshold )
             {
                 //Remove this entry from the list.
-                pStaDs = dphLookupHashEntry(pMac, pTempNode->peerMacAddr, &aid, &psessionEntry->dph.dphHashTable);
+                pStaDs = dphLookupHashEntry(pMac, pTempNode->peerMacAddr, &peerIdx, &psessionEntry->dph.dphHashTable);
                 if (pStaDs)
                 {
                     staIndex = pStaDs->staIndex;
@@ -1546,7 +1551,7 @@ void limIbssHeartBeatHandle(tpAniSirGlobal pMac,tpPESession psessionEntry)
                     ucBcastSig = pStaDs->ucBcastSig;
 
                     (void) limDelSta(pMac, pStaDs, false /*asynchronous*/,psessionEntry);
-                    limDeleteDphHashEntry(pMac, pStaDs->staAddr, aid,psessionEntry);
+                    limDeleteDphHashEntry(pMac, pStaDs->staAddr, peerIdx,psessionEntry);
 
                     //Send indication.
                     ibss_status_chg_notify( pMac, pTempNode->peerMacAddr, staIndex, 
@@ -1636,7 +1641,7 @@ limIbssDecideProtectionOnDelete(tpAniSirGlobal pMac,
         limGetPhyMode(pMac, &phyMode, psessionEntry);
         erpEnabled = pStaDs->erpEnabled;
         //we are HT or 11G and 11B station is getting deleted.
-        if ( ((phyMode == WNI_CFG_PHY_MODE_11G) || pMac->lim.htCapability) 
+        if ( ((phyMode == WNI_CFG_PHY_MODE_11G) || psessionEntry->htCapability)
               && (erpEnabled == eHAL_CLEAR))
         {
             PELOGE(limLog(pMac, LOGE, FL("(%d) A legacy STA is disassociated. Addr is "),

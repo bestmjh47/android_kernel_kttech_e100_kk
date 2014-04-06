@@ -3495,7 +3495,8 @@ CONFIG_ANDROID_LOW_MEMORY_KILLER=y
 #
 # Qualcomm Atheros Prima WLAN module
 #
-# CONFIG_PRIMA_WLAN is not set
+CONFIG_PRIMA_WLAN=m
+# CONFIG_PRIMA_WLAN_BTAMP is not set
 
 #
 # Qualcomm MSM specific device drivers

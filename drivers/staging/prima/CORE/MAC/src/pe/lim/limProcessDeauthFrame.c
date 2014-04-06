@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -72,6 +92,8 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
     tLimMlmAssocCnf   mlmAssocCnf;
     tLimMlmDeauthInd  mlmDeauthInd;
     tpDphHashNode     pStaDs;
+    tpPESession       pRoamSessionEntry=NULL;
+    tANI_U8           roamSessionId;
 
 
     pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
@@ -110,9 +132,18 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
 
     PELOGE(limLog(pMac, LOGE,
         FL("received Deauth frame (mlm state = %s) with reason code %d from "),
-        limMlmStateStr(pMac->lim.gLimMlmState), reasonCode);
+        limMlmStateStr(psessionEntry->limMlmState), reasonCode);
     limPrintMacAddr(pMac, pHdr->sa, LOGE);)
       
+    if (limCheckDisassocDeauthAckPending(pMac, (tANI_U8*)pHdr->sa))
+    {
+        PELOGW(limLog(pMac, LOGE, 
+                    FL("Ignore the Deauth received, while waiting for ack of disassoc/deauth\n"));)
+        limCleanUpDisassocDeauthReq(pMac,(tANI_U8*)pHdr->sa, 1);
+        return;
+    }
+
+  
     if ( (psessionEntry->limSystemRole == eLIM_AP_ROLE )||(psessionEntry->limSystemRole == eLIM_BT_AMP_AP_ROLE) )
     {
         switch (reasonCode)
@@ -187,9 +218,15 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
      *     AP we're currently associated with (case a), then proceed
      *     with normal deauth processing. 
      */
-    if (limIsReassocInProgress(pMac,psessionEntry)) {
+    if ( psessionEntry->limReAssocbssId!=NULL )
+    {
+        pRoamSessionEntry = peFindSessionByBssid(pMac, psessionEntry->limReAssocbssId, &roamSessionId);
+    }
+    if (limIsReassocInProgress(pMac,psessionEntry) || limIsReassocInProgress(pMac,pRoamSessionEntry)) {
         if (!IS_REASSOC_BSSID(pMac,pHdr->sa,psessionEntry)) {
             PELOGE(limLog(pMac, LOGE, FL("Rcv Deauth from unknown/different AP while ReAssoc. Ignore \n"));)
+            limPrintMacAddr(pMac, pHdr->sa, LOGE);
+            limPrintMacAddr(pMac, psessionEntry->limReAssocbssId, LOGE);
             return;
         }
 
@@ -197,7 +234,9 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
          *  Drop ReAssoc and Restore the Previous context( current connected AP).
          */
         if (!IS_CURRENT_BSSID(pMac, pHdr->sa,psessionEntry)) {
-            PELOGE(limLog(pMac, LOGW, FL("received DeAuth from the New AP to which ReAssoc is sent \n"));)
+            PELOGE(limLog(pMac, LOGE, FL("received DeAuth from the New AP to which ReAssoc is sent \n"));)
+            limPrintMacAddr(pMac, pHdr->sa, LOGE);
+            limPrintMacAddr(pMac, psessionEntry->bssId, LOGE);
             limRestorePreReassocState(pMac,
                                   eSIR_SME_REASSOC_REFUSED, reasonCode,psessionEntry);
             return;
@@ -208,10 +247,8 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
     /* If received DeAuth from AP other than the one we're trying to join with
      * nor associated with, then ignore deauth and delete Pre-auth entry.
      */
-#ifdef WLAN_SOFTAP_FEATURE
     if(psessionEntry->limSystemRole != eLIM_AP_ROLE ){
-#endif
-        if (!IS_CURRENT_BSSID(pMac, pHdr->sa,psessionEntry)) 
+        if (!IS_CURRENT_BSSID(pMac, pHdr->bssId, psessionEntry))
         {
             PELOGE(limLog(pMac, LOGE, FL("received DeAuth from an AP other than we're trying to join. Ignore. \n"));)
             if (limSearchPreAuthList(pMac, pHdr->sa))
@@ -221,9 +258,9 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
             }
             return;
         }
-#ifdef WLAN_SOFTAP_FEATURE
     }
-#endif
+
+        pStaDs = dphLookupHashEntry(pMac, pHdr->sa, &aid, &psessionEntry->dph.dphHashTable);
 
         // Check for pre-assoc states
         switch (psessionEntry->limSystemRole)
@@ -259,7 +296,7 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
                         mlmDeauthInd.reasonCode = reasonCode;
 
                         psessionEntry->limMlmState = eLIM_MLM_IDLE_STATE;
-                        MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
+                        MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, psessionEntry->limMlmState));
 
                         
                         limPostSmeMessage(pMac,
@@ -290,7 +327,7 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
 
                         psessionEntry->limMlmState =
                                    psessionEntry->limPrevMlmState;
-                        MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, psessionEntry->limMlmState));
+                        MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, psessionEntry->limMlmState));
 
                         // Deactive Association response timeout
                         limDeactivateAndChangeTimer(
@@ -306,23 +343,41 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
 
                     case eLIM_MLM_IDLE_STATE:
                     case eLIM_MLM_LINK_ESTABLISHED_STATE:
-                        /**
-                         * This could be Deauthentication frame from
-                         * a BSS with which pre-authentication was
-                         * performed. Delete Pre-auth entry if found.
-                         */
-                        if (limSearchPreAuthList(pMac, pHdr->sa))
-                           limDeletePreAuthNode(pMac, pHdr->sa);
-
+#ifdef FEATURE_WLAN_TDLS
+                        if ((NULL != pStaDs) && (STA_ENTRY_TDLS_PEER == pStaDs->staType))
+                        {
+                           PELOGE(limLog(pMac, LOGE,
+                              FL("received Deauth frame with reason code %d from Tdls peer"),
+                                 reasonCode);
+                           limPrintMacAddr(pMac, pHdr->sa, LOGE);)
+                           limSendSmeTDLSDelStaInd(pMac, pStaDs, psessionEntry,
+                                                   reasonCode);
+                           return;
+                        }
+                        else
+                        {
+                           limDeleteTDLSPeers(pMac, psessionEntry);
+#endif
+                           /**
+                            * This could be Deauthentication frame from
+                            * a BSS with which pre-authentication was
+                            * performed. Delete Pre-auth entry if found.
+                            */
+                           if (limSearchPreAuthList(pMac, pHdr->sa))
+                              limDeletePreAuthNode(pMac, pHdr->sa);
+#ifdef FEATURE_WLAN_TDLS
+                        }
+#endif
                         break;
 
                     case eLIM_MLM_WT_REASSOC_RSP_STATE:
                         break;
 
                     case eLIM_MLM_WT_FT_REASSOC_RSP_STATE:
-                        PELOG1(limLog(pMac, LOG1,
+                        PELOGE(limLog(pMac, LOGE,
                            FL("received Deauth frame in FT state %X with reasonCode=%d from "),
                            psessionEntry->limMlmState, reasonCode);)
+                        limPrintMacAddr(pMac, pHdr->sa, LOGE);
                         break;
 
                     default:
@@ -337,44 +392,11 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
             case eLIM_STA_IN_IBSS_ROLE:
                 break;
 
-#ifdef WLAN_SOFTAP_FEATURE
             case eLIM_AP_ROLE:
                 break;
-#endif 
 
             default: // eLIM_AP_ROLE or eLIM_BT_AMP_AP_ROLE
 
-#if (WNI_POLARIS_FW_PRODUCT == AP)
-                /// Check if there exists pre-auth context for this STA
-                if (limSearchPreAuthList(pMac, pHdr->sa) == NULL)
-                {
-                    /**
-                     * Received Deauthentication from a STA that is neither
-                     * Associated nor Pre-authenticated. Log error,
-                     * and ignore Deauthentication frame.
-                     */
-                    PELOG1(limLog(pMac, LOG1,
-                       FL("received Deauth frame from peer that does not have context, addr "));
-                    limPrintMacAddr(pMac, pHdr->sa, LOG1);)
-                }
-                else
-                {
-                    /// Delete STA from pre-auth STA list
-                    limDeletePreAuthNode(pMac,
-                                         pHdr->sa);
-
-                    palCopyMemory( pMac->hHdd,
-                           (tANI_U8 *) &mlmDeauthInd.peerMacAddr,
-                           pHdr->sa,
-                           sizeof(tSirMacAddr));
-                    mlmDeauthInd.reasonCode = reasonCode;
-                    mlmDeauthInd.aid        = 0;
-
-                    limPostSmeMessage(pMac,
-                                      LIM_MLM_DEAUTH_IND,
-                                      (tANI_U32 *) &mlmDeauthInd);
-                }
-#endif
 
                 return;
         } // end switch (pMac->lim.gLimSystemRole)
@@ -385,7 +407,7 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
      * Extract 'associated' context for STA, if any.
      * This is maintained by DPH and created by LIM.
      */
-    if( (pStaDs = dphLookupHashEntry(pMac, pHdr->sa, &aid, &psessionEntry->dph.dphHashTable)) == NULL)
+    if (NULL == pStaDs)
         return;
 
 
@@ -409,17 +431,15 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
     palCopyMemory( pMac->hHdd, (tANI_U8 *) &mlmDeauthInd.peerMacAddr,
                   pStaDs->staAddr,
                   sizeof(tSirMacAddr));
-#if (WNI_POLARIS_FW_PRODUCT == AP)
-    mlmDeauthInd.aid           = pStaDs->assocId;
-#endif
     mlmDeauthInd.reasonCode    = (tANI_U8) pStaDs->mlmStaContext.disassocReason;
     mlmDeauthInd.deauthTrigger = eLIM_PEER_ENTITY_DEAUTH;
 
 
-    /* If we're in the middle of ReAssoc and received deauth from 
+    /* 
+     * If we're in the middle of ReAssoc and received deauth from 
      * the ReAssoc AP, then notify SME by sending REASSOC_RSP with 
-     * failure result code. By design, SME will then issue "Disassoc"  
-     * and cleanup will happen at that time. 
+     * failure result code. SME will post the disconnect to the
+     * supplicant and the latter would start a fresh assoc.
      */
     if (limIsReassocInProgress(pMac,psessionEntry)) {
         /**
@@ -436,7 +456,14 @@ limProcessDeauthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession p
         }
 
         PELOGE(limLog(pMac, LOGE, FL("Rcv Deauth from ReAssoc AP. Issue REASSOC_CNF. \n"));)
-        limRestorePreReassocState(pMac, eSIR_SME_REASSOC_REFUSED, reasonCode,psessionEntry);
+       /*
+        * TODO: Instead of overloading eSIR_SME_FT_REASSOC_TIMEOUT_FAILURE
+        * it would have been good to define/use a different failure type.
+        * Using eSIR_SME_FT_REASSOC_FAILURE does not seem to clean-up
+        * properly and we end up seeing "transmit queue timeout".
+        */
+       limPostReassocFailure(pMac, eSIR_SME_FT_REASSOC_TIMEOUT_FAILURE,
+               eSIR_MAC_UNSPEC_FAILURE_STATUS, psessionEntry);
         return;
     }
 
