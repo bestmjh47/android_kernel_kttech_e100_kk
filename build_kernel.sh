@@ -16,13 +16,15 @@ make -j25
 echo Compiling Finished!
 cp arch/arm/boot/zImage zImage
 echo Striping Modules...
-rm -rf Modules/*
+rm -rf Modules
+mkdir Modules
+mkdir Modules/etc/firmware/wlan/prima
 find -name '*.ko' -exec cp -av {} Modules \;
         for i in Modules/*; do $TOOLCHAINPATH/arm-gnueabi-strip --strip-unneeded $i;done;\
 mkdir -p Modules/etc/firmware/wlan/prima
-cp drivers/staging/prima/firmware_bin/WCNSS_cfg.dat Modules/etc/firmware/wlan/prima
-cp drivers/staging/prima/firmware_bin/WCNSS_qcom_cfg.ini Modules/etc/firmware/wlan/prima
-cp drivers/staging/prima/firmware_bin/WCNSS_qcom_wlan_nv.bin Modules/etc/firmware/wlan/prima
+cp -f drivers/staging/prima/firmware_bin/WCNSS_cfg.dat Modules/etc/firmware/wlan/prima
+cp -f drivers/staging/prima/firmware_bin/WCNSS_qcom_cfg.ini Modules/etc/firmware/wlan/prima
+cp -f drivers/staging/prima/firmware_bin/WCNSS_qcom_wlan_nv.bin Modules/etc/firmware/wlan/prima
 echo ""
 echo Done! zImage is READY!!!
 echo Making bootimg for direct flashing...
